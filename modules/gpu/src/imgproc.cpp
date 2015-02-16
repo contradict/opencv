@@ -53,7 +53,7 @@ cv::gpu::CannyBuf::CannyBuf(const GpuMat&, const GpuMat&) { }
 void cv::gpu::meanShiftFiltering(const GpuMat&, GpuMat&, int, int, TermCriteria, Stream&) { throw_nogpu(); }
 void cv::gpu::meanShiftProc(const GpuMat&, GpuMat&, GpuMat&, int, int, TermCriteria, Stream&) { throw_nogpu(); }
 void cv::gpu::drawColorDisp(const GpuMat&, GpuMat&, int, Stream&) { throw_nogpu(); }
-void cv::gpu::reprojectImageTo3D(const GpuMat&, GpuMat&, const Mat&, int, Stream&) { throw_nogpu(); }
+void cv::gpu::reprojectImageTo3D(const GpuMat&, GpuMat&, const Mat&, int, bool, Stream&) { throw_nogpu(); }
 void cv::gpu::copyMakeBorder(const GpuMat&, GpuMat&, int, int, int, int, int, const Scalar&, Stream&) { throw_nogpu(); }
 void cv::gpu::buildWarpPlaneMaps(Size, Rect, const Mat&, const Mat&, const Mat&, float, GpuMat&, GpuMat&, Stream&) { throw_nogpu(); }
 void cv::gpu::buildWarpCylindricalMaps(Size, Rect, const Mat&, const Mat&, float, GpuMat&, GpuMat&, Stream&) { throw_nogpu(); }
@@ -217,15 +217,15 @@ namespace cv { namespace gpu { namespace device
     namespace imgproc
     {
         template <typename T, typename D>
-        void reprojectImageTo3D_gpu(const PtrStepSzb disp, PtrStepSzb xyz, const float* q, cudaStream_t stream);
+        void reprojectImageTo3D_gpu(const PtrStepSzb disp, PtrStepSzb xyz, const float* q, float minDisparity, cudaStream_t stream);
     }
 }}}
 
-void cv::gpu::reprojectImageTo3D(const GpuMat& disp, GpuMat& xyz, const Mat& Q, int dst_cn, Stream& stream)
+void cv::gpu::reprojectImageTo3D(const GpuMat& disp, GpuMat& xyz, const Mat& Q, int dst_cn, bool handleMissingValues, Stream& stream)
 {
     using namespace cv::gpu::device::imgproc;
 
-    typedef void (*func_t)(const PtrStepSzb disp, PtrStepSzb xyz, const float* q, cudaStream_t stream);
+    typedef void (*func_t)(const PtrStepSzb disp, PtrStepSzb xyz, const float* q, float minDisparity, cudaStream_t stream);
     static const func_t funcs[2][6] =
     {
         {reprojectImageTo3D_gpu<uchar, float3>, 0, 0, reprojectImageTo3D_gpu<short, float3>, 0, reprojectImageTo3D_gpu<float, float3>},
@@ -238,7 +238,11 @@ void cv::gpu::reprojectImageTo3D(const GpuMat& disp, GpuMat& xyz, const Mat& Q, 
 
     xyz.create(disp.size(), CV_MAKE_TYPE(CV_32F, dst_cn));
 
-    funcs[dst_cn == 4][disp.type()](disp, xyz, Q.ptr<float>(), StreamAccessor::getStream(stream));
+    double minDisparity = FLT_MAX;
+    if(handleMissingValues)
+        cv::gpu::minMax(disp, &minDisparity);
+
+    funcs[dst_cn == 4][disp.type()](disp, xyz, Q.ptr<float>(), (float)minDisparity, StreamAccessor::getStream(stream));
 }
 
 ////////////////////////////////////////////////////////////////////////

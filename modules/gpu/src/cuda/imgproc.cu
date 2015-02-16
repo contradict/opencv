@@ -47,6 +47,7 @@
 #include "opencv2/gpu/device/vec_math.hpp"
 #include "opencv2/gpu/device/saturate_cast.hpp"
 #include "opencv2/gpu/device/border_interpolate.hpp"
+#include "opencv2/gpu/device/limits.hpp"
 
 namespace cv { namespace gpu { namespace device
 {
@@ -319,7 +320,7 @@ namespace cv { namespace gpu { namespace device
         __constant__ float cq[16];
 
         template <typename T, typename D>
-        __global__ void reprojectImageTo3D(const PtrStepSz<T> disp, PtrStep<D> xyz)
+        __global__ void reprojectImageTo3D(const PtrStepSz<T> disp, PtrStep<D> xyz, float minDisparity)
         {
             const int x = blockIdx.x * blockDim.x + threadIdx.x;
             const int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -341,30 +342,33 @@ namespace cv { namespace gpu { namespace device
             v.y = (qy + cq[6] * d) * iW;
             v.z = (qz + cq[10] * d) * iW;
 
+            if( fabs(d-minDisparity) <= numeric_limits<float>::epsilon() )
+                v.z = 10000.f;
+
             xyz(y, x) = v;
         }
 
         template <typename T, typename D>
-        void reprojectImageTo3D_gpu(const PtrStepSzb disp, PtrStepSzb xyz, const float* q, cudaStream_t stream)
+        void reprojectImageTo3D_gpu(const PtrStepSzb disp, PtrStepSzb xyz, const float* q, float minDisparity, cudaStream_t stream)
         {
             dim3 block(32, 8);
             dim3 grid(divUp(disp.cols, block.x), divUp(disp.rows, block.y));
 
             cudaSafeCall( cudaMemcpyToSymbol(cq, q, 16 * sizeof(float)) );
 
-            reprojectImageTo3D<T, D><<<grid, block, 0, stream>>>((PtrStepSz<T>)disp, (PtrStepSz<D>)xyz);
+            reprojectImageTo3D<T, D><<<grid, block, 0, stream>>>((PtrStepSz<T>)disp, (PtrStepSz<D>)xyz, minDisparity);
             cudaSafeCall( cudaGetLastError() );
 
             if (stream == 0)
                 cudaSafeCall( cudaDeviceSynchronize() );
         }
 
-        template void reprojectImageTo3D_gpu<uchar, float3>(const PtrStepSzb disp, PtrStepSzb xyz, const float* q, cudaStream_t stream);
-        template void reprojectImageTo3D_gpu<uchar, float4>(const PtrStepSzb disp, PtrStepSzb xyz, const float* q, cudaStream_t stream);
-        template void reprojectImageTo3D_gpu<short, float3>(const PtrStepSzb disp, PtrStepSzb xyz, const float* q, cudaStream_t stream);
-        template void reprojectImageTo3D_gpu<short, float4>(const PtrStepSzb disp, PtrStepSzb xyz, const float* q, cudaStream_t stream);
-        template void reprojectImageTo3D_gpu<float, float3>(const PtrStepSzb disp, PtrStepSzb xyz, const float* q, cudaStream_t stream);
-        template void reprojectImageTo3D_gpu<float, float4>(const PtrStepSzb disp, PtrStepSzb xyz, const float* q, cudaStream_t stream);
+        template void reprojectImageTo3D_gpu<uchar, float3>(const PtrStepSzb disp, PtrStepSzb xyz, const float* q, float minDisparity, cudaStream_t stream);
+        template void reprojectImageTo3D_gpu<uchar, float4>(const PtrStepSzb disp, PtrStepSzb xyz, const float* q, float minDisparity, cudaStream_t stream);
+        template void reprojectImageTo3D_gpu<short, float3>(const PtrStepSzb disp, PtrStepSzb xyz, const float* q, float minDisparity, cudaStream_t stream);
+        template void reprojectImageTo3D_gpu<short, float4>(const PtrStepSzb disp, PtrStepSzb xyz, const float* q, float minDisparity, cudaStream_t stream);
+        template void reprojectImageTo3D_gpu<float, float3>(const PtrStepSzb disp, PtrStepSzb xyz, const float* q, float minDisparity, cudaStream_t stream);
+        template void reprojectImageTo3D_gpu<float, float4>(const PtrStepSzb disp, PtrStepSzb xyz, const float* q, float minDisparity, cudaStream_t stream);
 
         /////////////////////////////////////////// Corner Harris /////////////////////////////////////////////////
 
