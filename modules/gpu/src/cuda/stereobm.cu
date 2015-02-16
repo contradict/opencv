@@ -475,9 +475,9 @@ namespace cv { namespace gpu { namespace device
             if (winsz2 == 0 || winsz2 >= refine_callers_num)
                 error("Unsupported window size", __FILE__, __LINE__, "BMrefine_GPU");
 
+            cudaSafeCall( cudaMemset2D(out_disp.data, out_disp.step, 0, out_disp.cols*sizeof(float), out_disp.rows) );
             cudaSafeCall( cudaMemcpyToSymbol( cwidth, &left.cols, sizeof(left.cols) ) );
             cudaSafeCall( cudaMemcpyToSymbol( cheight, &left.rows, sizeof(left.rows) ) );
-            cudaSafeCall( cudaMemset2D(out_disp.data, out_disp.step, 0.0f, out_disp.cols, out_disp.rows) );
 
             refine_callers[winsz2](left, right, disp, out_disp, ndisp, stream);
         }
