@@ -108,11 +108,19 @@ namespace
         CV_Assert(left.type() == CV_8UC1);
         CV_Assert(right.type() == CV_8UC1);
 
-        GpuMat float_disparity;
+        GpuMat int_disparity;
 
-        disparity.create(left.size(), CV_8U);
         if (preset & StereoBM_GPU::FLOAT_DISPARITY)
-            float_disparity.create(left.size(), CV_32F);
+        {
+            disparity.create(left.size(), CV_32F);
+            int_disparity.create(left.size(), CV_8U);
+        }
+        else
+        {
+            disparity.create(left.size(), CV_8U);
+            int_disparity = disparity;
+        }
+
         minSSD.create(left.size(), CV_32S);
 
         GpuMat le_for_bm =  left;
@@ -131,14 +139,12 @@ namespace
         }
 
         
-        stereoBM_GPU(le_for_bm, ri_for_bm, disparity, ndisp, winSize, minSSD, stream);
+        stereoBM_GPU(le_for_bm, ri_for_bm, int_disparity, ndisp, winSize, minSSD, stream);
 
         if (avergeTexThreshold)
-            postfilter_textureness(le_for_bm, winSize, avergeTexThreshold, disparity, stream);
+            postfilter_textureness(le_for_bm, winSize, avergeTexThreshold, int_disparity, stream);
         if (preset & StereoBM_GPU::FLOAT_DISPARITY) {
-            refineBM_GPU(le_for_bm, ri_for_bm, disparity, ndisp, winSize, float_disparity, stream);
-            //float_disparity = disparity;
-            disparity = float_disparity;
+            refineBM_GPU(le_for_bm, ri_for_bm, int_disparity, ndisp, winSize, disparity, stream);
         }
     }
 }
