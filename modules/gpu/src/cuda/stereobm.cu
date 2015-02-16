@@ -395,7 +395,7 @@ namespace cv { namespace gpu { namespace device
 
             int end_row = ::min(ROWSperTHREAD, cheight - Y - RADIUS);
             if ((x < cwidth) && (y < cheight)) {
-                for(int r=1; r<end_row; r++){
+                for(int r=0; r<end_row; r++){
                     int cur_disp = disp(y+r, x);
                     //default to un-refined result
                     finedisp(y+r,x) = (float)cur_disp;
