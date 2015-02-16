@@ -393,7 +393,7 @@ namespace cv { namespace gpu { namespace device
             int x = blockIdx.x*blockDim.x + threadIdx.x + ndisp + RADIUS;
             int y = blockIdx.y*ROWSperTHREAD + RADIUS;
 
-            int end_row = ::min(ROWSperTHREAD, cheight - Y - RADIUS);
+            int end_row = ::min(ROWSperTHREAD, cheight - y - RADIUS);
             if ((x < cwidth) && (y < cheight)) {
                 for(int r=0; r<end_row; r++){
                     int cur_disp = disp(y+r, x);
