@@ -376,16 +376,19 @@ namespace cv { namespace gpu { namespace device
 
         //calculate an SSD given upper left pointers of two images
         template<int RADIUS>
-        __device__ unsigned int CalcSSDwindow(volatile unsigned char *left, volatile unsigned char *right, const ssize_t stride) {
-            unsigned int ssd = 0;
+        __device__ uint3 CalcSSDwindow(unsigned char *left, unsigned char *right, const ssize_t stride) {
+            uint3 result = make_uint3(0,0,0);
 
             for (int r = 0; r <= 2*RADIUS; r++) {
                 for(int c = 0; c <= 2*RADIUS; c++) {
-                    int i = r*stride + c;
-                    ssd += SQ((int)left[i] - (int)right[i]);
+                    int leftpixel = left[r*stride+c];
+                    unsigned char *rightpixel = right+r*stride+c;
+                    result.x += SQ(leftpixel - (int)rightpixel[0]);
+                    result.y += SQ(leftpixel - (int)rightpixel[1]);
+                    result.z += SQ(leftpixel - (int)rightpixel[2]);
                 }
             }
-            return ssd;
+            return result;
         };
 
         template<int RADIUS>
@@ -416,15 +419,11 @@ namespace cv { namespace gpu { namespace device
                     if ((cur_disp != 0) && (top >= 0) && (bot < cheight) &&
                             (r_edgL >= 0) && (r_edgR < cwidth) &&
                             (l_edgL >= 0) && (l_edgR < cwidth)) {
-                        unsigned int ssd_l = CalcSSDwindow<RADIUS>(left + l_edgL + top*img_step,
-                                right + (r_edgL + 0) + top*img_step, img_step);
-                        unsigned int ssd_c = CalcSSDwindow<RADIUS>(left + l_edgL + top*img_step,
-                                right + (r_edgL + 1) + top*img_step, img_step);
-                        unsigned int ssd_r = CalcSSDwindow<RADIUS>(left + l_edgL + top*img_step,
-                                right + (r_edgL + 2) + top*img_step, img_step);
+                        uint3 ssd = CalcSSDwindow<RADIUS>(left + l_edgL + top*img_step,
+                                right + r_edgL + top*img_step, img_step);
 
-                        float a = ((float)ssd_l + (float)ssd_r)/2.0f - (float)ssd_c;
-                        float b = ((float)ssd_r - (float)ssd_l)/2.0f;
+                        float a = ((float)ssd.x + (float)ssd.z)/2.0f - (float)ssd.y;
+                        float b = ((float)ssd.z - (float)ssd.x)/2.0f;
                         float d = a + fabs(b);
                         if ((a > 0.0f) && (fabs(d) > 1.0f)) {
                             finedisp(y+r,x) = b/d + (float)cur_disp;
