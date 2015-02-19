@@ -378,18 +378,26 @@ namespace cv { namespace gpu { namespace device
         //calculate an SSD given upper left pointers of two images
         template<int RADIUS>
         __device__ uint3 CalcSSDwindow(unsigned char *left, unsigned char *right, const ssize_t stride) {
-            uint3 result = make_uint3(0,0,0);
+            unsigned int lsum=0, lcsum=0, csum=0, rcsum=0, rsum=0;
 
             for (int r = 0; r <= 2*RADIUS; r++) {
-                for(int c = 0; c <= 2*RADIUS; c++) {
-                    int leftpixel = left[r*stride+c];
-                    unsigned char *rightpixel = right+r*stride+c;
-                    result.x += SQ(leftpixel - (int)rightpixel[0]);
-                    result.y += SQ(leftpixel - (int)rightpixel[1]);
-                    result.z += SQ(leftpixel - (int)rightpixel[2]);
+                int row=r*stride;
+                int leftpixel = left[row];
+                lsum += SQ(leftpixel - (int)right[row]);
+                lsum += SQ(leftpixel - (int)right[row+1]);
+                lcsum += SQ(leftpixel - (int)right[row+1]);
+                for(int c = 2; c <= 2*RADIUS; c++) {
+                    csum += SQ(left[row+c] - (int)right[row+c]);
                 }
+                row += 2*RADIUS;
+                leftpixel = left[row];
+                rcsum += SQ(leftpixel - (int)right[row+1]);
+                rsum += SQ(leftpixel - (int)right[row+1]);
+                rsum += SQ(leftpixel - (int)right[row+2]);
             }
-            return result;
+            return make_uint3(lsum+lcsum+csum,
+                              lcsum+csum+rcsum,
+                              csum+rcsum+rsum);
         };
 
         template<int RADIUS>
