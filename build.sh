@@ -1,0 +1,18 @@
+#!/bin/bash
+
+cmake .. \
+    -DCMAKE_INSTALL_PREFIX:PATH="/usr/local/opencv" \
+    -DWITH_QT:BOOL="1" \
+    -DWITH_IPP:BOOL="1" \
+    -DWITH_TBB:BOOL="1" \
+    -DWITH_OPENGL:BOOL="1" \
+    -DENABLE_AVX:BOOL="1" \
+    -DENABLE_AVX2:BOOL="1" \
+    -DENABLE_SSE41:BOOL="1" \
+    -DENABLE_SSE42:BOOL="1" \
+    -DENABLE_SSSE3:BOOL="1" \
+    -DWITH_CUBLAS:BOOL="1" \
+    -DWITH_NVCUVID:BOOL="0" \
+    -DBUILD_EXAMPLES:BOOL="1" \
+    -DCUDA_ARCH_BIN:STRING="2.0"
+
